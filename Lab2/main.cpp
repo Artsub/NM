@@ -7,6 +7,7 @@ class Matrix {
 private:
     std::vector<std::vector<double>> matrix;
     double determinant = 1.0;
+
 public:
     void printMatrix(std::ostream& os) {
         for (const auto &str : matrix) {
@@ -17,7 +18,7 @@ public:
         }
     }
 
-    double getDet(){
+    double getDet() {
         return determinant;
     }
 
@@ -28,20 +29,20 @@ public:
         for (int k = 0; k < rows; ++k) {
             if (matrix[k][k] == 0.0) {
                 throw std::logic_error("Cant make a triangle");
-        }
-        
-        double diagonal = matrix[k][k];
-        determinant *= diagonal;
-        for (int j = k; j < cols; ++j) {
-            matrix[k][j] /= diagonal;
-        }
+            }
 
-        for (int i = k + 1; i < rows; ++i) {
-            double factor = matrix[i][k];
+            double diagonal = matrix[k][k];
+            determinant *= diagonal;
+            for (int j = k; j < cols; ++j) {
+                matrix[k][j] /= diagonal;
+            }
+
+            for (int i = k + 1; i < rows; ++i) {
+                double factor = matrix[i][k];
                 for (int j = k; j < cols; ++j) {
                     matrix[i][j] -= factor * matrix[k][j];
                 }
-        }
+            }
         }
     }
     
@@ -50,8 +51,6 @@ public:
         int cols = matrix[0].size(); 
 
         for (int k = rows - 1; k >= 0; --k) {
-        
-       
             if (matrix[k][k] == 0.0) {
                     throw std::logic_error("Cant make a diagonal");
             }
@@ -60,16 +59,18 @@ public:
             for (int j = 0; j < cols; ++j) {
                 matrix[k][j] /=  diagonal;
             }
-             // Обнуление элементов выше текущей строки
+
+            // Обнуление элементов выше текущей строки
             for (int i = 0; i < k; ++i) {
                 double factor = matrix[i][k];
-                    for (int j = 0; j < cols; ++j) {
-                        matrix[i][j] -= factor * matrix[k][j];
-                    }
+                for (int j = 0; j < cols; ++j) {
+                    matrix[i][j] -= factor * matrix[k][j];
                 }
+            }
         }
     }
-    std::vector<double> reverseStep(){
+
+    std::vector<double> reverseStep() {
         int rows = matrix.size();    
         int cols = matrix[0].size(); 
         std::vector<double> result(rows);
@@ -82,11 +83,9 @@ public:
         }
 
         return result;
-
     }
 
     std::vector<double> methodGauss() {
-        
         toUpperTriangular();
         return reverseStep();
     }
@@ -114,7 +113,38 @@ public:
             throw std::runtime_error("Cant read the file");
         }
     }
+
+    // Функция для вычисления обратной матрицы
+    Matrix inverseMatrix() {
+        int n = matrix.size();
+        Matrix augmentedMatrix = *this;
+
+        // Создаем расширенную матрицу: [A | I]
+        for (int i = 0; i < n; ++i) {
+            augmentedMatrix.matrix[i].resize(2 * n);
+            augmentedMatrix.matrix[i][n + i] = 1.0; // Единичная матрица справа
+        }
+
+        // Приводим к верхнетреугольному виду
+        augmentedMatrix.toUpperTriangular();
+
+        // Преобразуем матрицу к единичной на левой части и получаем обратную матрицу на правой части
+        augmentedMatrix.makeDiagonal();
+
+        // Возвращаем правую часть как обратную матрицу
+        Matrix inverse;
+        inverse.matrix.resize(n);
+        for (int i = 0; i < n; ++i) {
+            inverse.matrix[i].resize(n);
+            for (int j = 0; j < n; ++j) {
+                inverse.matrix[i][j] = augmentedMatrix.matrix[i][n + j];
+            }
+        }
+
+        return inverse;
+    }
 };
+
 int main() {
     std::string path("D:\\ShitStudy\\NumMethods\\Lab2\\input.txt");
     std::fstream input(path);
@@ -123,22 +153,23 @@ int main() {
     try {
         testMatrix.matrixFromFile(input);
     }
-    catch(const std::exception& e){
-        std::cerr << e.what()<< std::endl;
+    catch (const std::exception& e) {
+        std::cerr << e.what() << std::endl;
         return 0;
     }
-    auto result = testMatrix.methodGauss();
-    for(auto& i : result){
-        std::cout << i << " ";
-    }
-    std::cout << std::endl;
-    std::cout << testMatrix.getDet() << std::endl;
-    testMatrix.makeDiagonal();
+
+    // Выводим исходную матрицу
+    std::cout << "Исходная матрица:" << std::endl;
     testMatrix.printMatrix(std::cout);
-    
+
+    // Получаем и выводим обратную матрицу
+    try {
+        Matrix invMatrix = testMatrix.inverseMatrix();
+        std::cout << "Обратная матрица:" << std::endl;
+        invMatrix.printMatrix(std::cout);
+    } catch (const std::exception& e) {
+        std::cerr << "Ошибка при вычислении обратной матрицы: " << e.what() << std::endl;
+    }
+
     return 0;
 }
-/*-5 -6 4 -2 64
-0 3 -4 -6 -55
-2 4 -4 2 -48
-1 -8 2 8 68*/
