@@ -3,14 +3,24 @@
 #include <sstream>
 #include <vector>
 #include <cmath>
+#include <algorithm>
 #define eps 0.01
 
 class Matrix {
 private:
     std::vector<std::vector<double>> matrix;
     std::vector<double> results;
-
+    std::vector<std::vector<double>> eigenVectors;
 public:
+    Matrix() = default;
+    Matrix(const std::vector<std::vector<double>>& mat) : matrix(mat) {
+        int n = matrix.size();
+        eigenVectors.resize(n, std::vector<double>(n, 0));
+        for (int i = 0; i < n; ++i) {
+            eigenVectors[i][i] = 1.0; // Инициализируем как единичную матрицу
+        }
+    }
+
     void printMatrix(std::ostream& os) {
         for (const auto &str : matrix) {
             for (const auto &x : str) {
@@ -18,122 +28,101 @@ public:
             }
             os << std::endl;
         }
-        os << std::endl;
-        for(auto& i : results){
-            os<< i << " ";
+    }
+
+    void printEigenVectors(std::ostream& os) {
+        os << "\nСобственные векторы:\n";
+        for (const auto &vec : eigenVectors) {
+            for (double val : vec) {
+                os  << val << " ";
+            }
+            os << std::endl;
         }
     }
 
-    void convertToEquivalentForm() {
+    std::pair<int, int> findMaxElement() {
         int n = matrix.size();
-
-    
-        for (int i = 0; i < n; ++i) {
-            double coefficient = matrix[i][i];
+        int maxRow = 0, maxCol = 1;
+        double maxVal = fabs(matrix[0][1]);
         
-            if (coefficient != 0) {
-                results[i] /= coefficient;
-                for (int j = 0; j < n; ++j) {
-                    if (j != i) {
-                        matrix[i][j] /= -coefficient;
-                    }
-                }
-            }
-        }
-    }
-
-    double vectorNorm(const std::vector<double>& x1, const std::vector<double>& x2) {
-    double norm = 0.0;
-    for (size_t i = 0; i < x1.size(); ++i) {
-        norm += pow(x1[i] - x2[i], 2);
-    }
-    return sqrt(norm);
-}
-
-// Метод простых итераций
-    std::vector<double> simpleIterationMethod() {
-        int n = matrix.size();
-        std::vector<double> x(n, 0.0);  // Начальное приближение
-        std::vector<double> x_new(n, 0.0);
-
-        for (int iter = 0; iter < maxitertions; ++iter) {
-        // Вычисляем новое приближение
-            for (int i = 0; i < n; ++i) {
-                x_new[i] = results[i];
-                for (int j = 0; j < n; ++j) {
-                    if (i != j) {
-                        x_new[i] += matrix[i][j] * x[j];
-                    }
-                }
-            }
-
-        // Проверяем сходимость
-            if (vectorNorm(x_new, x) < eps) {
-                std::cout << "Метод сошелся за " << iter + 1 << " итераций." << std::endl;
-                return x_new;
-            }
-
-        // Обновляем вектор x для следующей итерации
-            x = x_new;
-        }
-
-    // Если не сошлось за maxIterations итераций
-        std::cout << "Метод не сошелся за " << maxitertions << " итераций." << std::endl;
-        return x_new;
-    }
-
-    std::vector<double> seidelMethod() {
-    int n = matrix.size();
-    std::vector<double> x(n, 0.0);  // Начальное приближение
-    std::vector<double> x_old(n, 0.0);  // Для хранения предыдущего приближения
-
-    for (int iter = 0; iter < maxitertions; ++iter) {
-        // Обновляем значения переменных
         for (int i = 0; i < n; ++i) {
-            double sum = results[i];
-            for (int j = 0; j < n; ++j) {
-                if (j < i) {
-                    // Используем новое значение (обновленное на текущей итерации)
-                    sum += matrix[i][j] * x[j];
-                } else if (j > i) {
-                    // Используем старое значение
-                    sum += matrix[i][j] * x_old[j];
+            for (int j = i + 1; j < n; ++j) {
+                if (fabs(matrix[i][j]) > maxVal) {
+                    maxVal = fabs(matrix[i][j]);
+                    maxRow = i;
+                    maxCol = j;
                 }
             }
-            x[i] = sum;
         }
-
-        // Проверяем сходимость
-        if (vectorNorm(x, x_old) < eps) {
-            std::cout << "Метод сошелся за " << iter + 1 << " итераций." << std::endl;
-            return x;
-        }
-
-        // Обновляем старое приближение
-        x_old = x;
+        return {maxRow, maxCol};
     }
 
-    // Если не сошлось за maxIterations итераций
-    std::cout << "Метод не сошелся за " << maxitertions << " итераций." << std::endl;
-    return x;
-}
-    void matrixFromFile2(std::fstream &input) {
+    void rotate(int p, int q) {
+        int n = matrix.size();
+        if (matrix[p][q] == 0) return;
+
+        double theta = 0.5 * atan2(2 * matrix[p][q], matrix[q][q] - matrix[p][p]);
+        double cosTheta = cos(theta);
+        double sinTheta = sin(theta);
+
+        std::vector<std::vector<double>> newMatrix = matrix;
+
+        // Обновляем элементы p-й и q-й строк и столбцов
+        for (int k = 0; k < n; ++k) {
+            if (k != p && k != q) {
+                newMatrix[p][k] = cosTheta * matrix[p][k] - sinTheta * matrix[q][k];
+                newMatrix[q][k] = sinTheta * matrix[p][k] + cosTheta * matrix[q][k];
+                newMatrix[k][p] = newMatrix[p][k];
+                newMatrix[k][q] = newMatrix[q][k];
+            }
+        }
+
+        // Обновляем диагональные элементы
+        newMatrix[p][p] = cosTheta * cosTheta * matrix[p][p] +
+                          sinTheta * sinTheta * matrix[q][q] -
+                          2 * sinTheta * cosTheta * matrix[p][q];
+        newMatrix[q][q] = sinTheta * sinTheta * matrix[p][p] +
+                          cosTheta * cosTheta * matrix[q][q] +
+                          2 * sinTheta * cosTheta * matrix[p][q];
+        newMatrix[p][q] = 0;
+        newMatrix[q][p] = 0;
+
+        matrix = newMatrix;
+
+        // Обновляем матрицу собственных векторов
+        for (int k = 0; k < n; ++k) {
+            double newPk = cosTheta * eigenVectors[k][p] - sinTheta * eigenVectors[k][q];
+            double newQk = sinTheta * eigenVectors[k][p] + cosTheta * eigenVectors[k][q];
+            eigenVectors[k][p] = newPk;
+            eigenVectors[k][q] = newQk;
+        }
+    }
+
+    std::vector<double> jacobiEigenvalues() {
+        int n = matrix.size();
+        std::vector<double> eigenvalues(n);
+
+        while (true) {
+            auto [p, q] = findMaxElement();
+            if (fabs(matrix[p][q]) < eps) 
+                break;
+            rotate(p, q);
+        }
+
+        for (int i = 0; i < n; ++i) {
+            eigenvalues[i] = matrix[i][i];
+        }
+        return eigenvalues;
+    }
+
+    void matrixFromFile(std::fstream &input) {
         if (input.is_open()) {
             int t, matrixStringSize = -8;
             std::vector<double> matrixString;
             std::string buffer;
-            int flag = 0;
+
             while (std::getline(input, buffer)) {
-                
                 std::stringstream nowString(buffer);
-                if(nowString.str() == ""){
-                    std::getline(input, buffer);
-                    std::stringstream nowString1(buffer);
-                    while(nowString1 >> t){
-                        results.push_back(t);
-                    }
-                    break;
-                }
                 while (nowString >> t) {
                     matrixString.push_back(t);
                 }
@@ -143,33 +132,38 @@ public:
                 matrixStringSize = matrixString.size();
                 matrix.push_back(matrixString);
                 matrixString.clear();
-            
-                
             }
             input.close();
+            int n = matrix.size();
+        eigenVectors.resize(n, std::vector<double>(n, 0));
+        for (int i = 0; i < n; ++i) {
+            eigenVectors[i][i] = 1.0; // Инициализируем как единичную матрицу
+        }
         } else {
             throw std::runtime_error("Cant read the file");
         }
     }
+
 };
 int main() {
     std::string path("input.txt");
     std::fstream input(path);
 
     Matrix testMatrix;
+    Matrix buffer;
     try {
-        testMatrix.matrixFromFile2(input);
+        testMatrix.matrixFromFile(input);
     }
     catch(const std::exception& e){
         std::cerr << e.what()<< std::endl;
         return 0;
     }
-    testMatrix.convertToEquivalentForm();
-    auto result = testMatrix.seidelMethod();
+    buffer = testMatrix;
+    auto result = testMatrix.jacobiEigenvalues();
     for(auto t : result){
-        std::cout << t << std::endl;    
+        std::cout << t << " ";    
     }
-    
-    
+    std::cout << std::endl;
+    testMatrix.printEigenVectors(std::cout);
     return 0;
 }
