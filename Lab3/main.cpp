@@ -165,7 +165,7 @@ int main() {
         return 0;
     }
     testMatrix.convertToEquivalentForm();
-    auto result = testMatrix.seidelMethod();
+    auto result = testMatrix.simpleIterationMethod();
     for(auto t : result){
         std::cout << t << std::endl;    
     }
